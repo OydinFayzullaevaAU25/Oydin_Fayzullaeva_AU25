@@ -19,22 +19,22 @@ order by f.title asc;
   No pagination or limit means returning full results, which may be excessive for real-world records. 3. Performance reliance on indexes - without proper indexing on film_id, category_id and release_year,
   teh query may trigger costly full table scans and sorting overhead.*/
 
-/* Task2: Revenue bu each store since April 2017 (after March 2017)
+/* Task2: Revenue by each store since April 2017 (after March 2017)
 Output: address+address2 as one column, revenue */
 
 select 
 s.store_id, (a.address|| coalesce (' ' || a.address2, '')) as address,
 round (sum (p.amount) ::numeric,2) as revenue
-from public.store s
+from public.payment p
+join public.staff st on p.staff_id=st.staff_id
+join public.store s on st.store_id=s.store_id
 join public.address a on a.address_id=s.address_id
-join public.staff st on st.store_id=s.store_id
-join public.payment p on p.staff_id=st.staff_id
 where p.payment_date>=date '2017-04-01'
 group by s.store_id, a.address, a.address2
 order by s.store_id;
 
-/* The benefits of the provided solutin for the second task: 1. The correct aggregation path. 2. Readebly structure. 3. Deterministic rounding gives stable currency_style output.
-   The drawbacks of the solution: 1. Open-ended time window - bo upper bounds; results change as new paymnets arrive. 2. Potential ove-aggregation - if payment.amount includes non-sales transactions for staff,
+/* The benefits of the provided solution for the second task: 1. The correct aggregation path. 2. Readebly structure. 3. Deterministic rounding gives stable currency_style output.
+   The drawbacks of the solution: 1. Open-ended time window - no upper bounds; results change as new paymnets arrive. 2. Potential over-aggregation - if payment.amount includes non-sales transactions for staff,
    they will be included unless filtered. 3. Resource usage is moderate - hash aggregate needs memory proportinal to number of groups.*/
 
 /*Task3:Top-5 actors by number of movies released after 2015
@@ -69,46 +69,24 @@ order by f.release_year desc;
    Task1: The HR department aims to reward top-performing employees in 2017 with bonuses to 
    recognize their contribution to stores revenue. Show which three employees generated the most revenue in 2017? */
 
-with p2017 as (
+
 select 
-p.payment_id, p.staff_id, p.amount, p.payment_date,
-coalesce (i.store_id, s.store_id) as store_id 
-from payment p
-left join rental r on r.rental_id= p.rental_id
-left join inventory i on i.inventory_id=r.inventory_id
-left join staff s  on s.staff_id=p.staff_id
+st.staff_id, st. first_name ||''||st.last_name as employee,
+s.store_id,
+round(sum(p.amount)::numeric, 2) as revenue
+from payment p 
+join staff st on st.staff_id=p.staff_id 
+join store s on s.store_id=st.store_id 
 where p.payment_date>=date '2017-01-01'
 and p.payment_date<date '2018-01-01'
-),
-revenue_by_staff as (
-select
-staff_id, 
-sum (amount) as revenue
-from p2017
-group by staff_id
-),
-last_store as ( 
-select distinct on (staff_id) 
-staff_id,
-store_id
-from p2017
-order by staff_id, payment_date desc, payment_id desc
-)
-select 
-st.staff_id, 
-st.first_name || ''|| st.last_name as employee, 
-r.revenue, 
-ls.store_id  as last_store_id
-from revenue_by_staff r
-join staff st on st.staff_id=r.staff_id
-left join last_store ls on ls.staff_id=st.staff_id
-order by r.revenue  desc
+group by st.staff_id, st.first_name, st.last_name, s.store_id 
+order by revenue desc
 limit 3;
 
-/* The benefits of the provided solution for task1: 1. Single-path conditional aggregation - count (*) filter (...) computes  all three genre totals in ome scan and one group-by.
-  2. Correct dimensional model -  joins film, film_category, category as intended for many-to-many genre mapping. 3. Extensible pattern - easy to add more genres by adding more filtered counts.
-  The drawbacks: 1. Fixed genre columns - adding or removing genres requires query edits. 2. Schema dependency - assumes every film has a valid release_year and genre mapping, null years are excluded.
-  3. No time window control - aggregation across all years unless filetred, reproducibility may require explicit bounds.*/ 
+
+/* The benefits of the provided solution for task1: 1. Straight joins, clear date filter, tidy group by.
+  2. Correct dimensional model -  fact - first (payment) then dimensions. Filters early on largest table. 3.Only two small dimension joins; nu unnecessary tables.
+  The drawbacks: 1. Grouping by s.store_id assumes the staff row reflects the final store. 2. The DB must aggregate all staff/store rows for 2017 before sorting/limiting. On huge datasets, this can be memory heavy (hash aggregate+sort)*/ 
 
 /*Task2:The management team wants to identify the most popular movies and their target audience age groups to optimize marketing efforts. 
  Show which 5 movies were rented more than others (number of rentals), and what's the expected age of the audience for these movies? 
@@ -194,4 +172,7 @@ order by max_gap_years desc, actor;
   The drawbacks: 1. Excludes actors with zero films. 2. Correlated subquery cost. 3. Duplicates across titles in same year - if an actor has multiple films in one year, the gap for that year is 0; acceptable but woth noting.
   Inner join is used between actor and film_actor, between film_actor and film (retrieves release_year for each linked film)
  */
+
+
+
 
