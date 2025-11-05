@@ -69,24 +69,38 @@ order by f.release_year desc;
    Task1: The HR department aims to reward top-performing employees in 2017 with bonuses to 
    recognize their contribution to stores revenue. Show which three employees generated the most revenue in 2017? */
 
-
+with pmt as (
 select 
-st.staff_id, st. first_name ||''||st.last_name as employee,
-s.store_id,
-round(sum(p.amount)::numeric, 2) as revenue
-from payment p 
-join staff st on st.staff_id=p.staff_id 
-join store s on s.store_id=st.store_id 
+p.payment_id,
+p.staff_id, 
+p.amount, 
+p.payment_date, 
+i.store_id 
+from payment p  
+join rental r on r.rental_id=p.rental_id
+join inventory i on i.inventory_id=r.inventory_id 
 where p.payment_date>=date '2017-01-01'
-and p.payment_date<date '2018-01-01'
-group by st.staff_id, st.first_name, st.last_name, s.store_id 
-order by revenue desc
+and p.payment_date<date '2018-01-01' 
+)
+select  
+st.staff_id, st. first_name ||''||st.last_name as employee,
+(select p2.store_id
+from pmt p2 
+where p2.staff_id = st.staff_id
+order by p2.payment_date desc, p2.payment_id desc
+limit 1
+) as last_store, 
+round(sum(p.amount)::numeric, 2) as revenue,
+max(p.payment_date) as last_payment_date
+from pmt p 
+join staff st on st.staff_id=p.staff_id
+group by st.staff_id, employee 
+order by revenue desc 
 limit 3;
 
-
-/* The benefits of the provided solution for task1: 1. Straight joins, clear date filter, tidy group by.
-  2. Correct dimensional model -  fact - first (payment) then dimensions. Filters early on largest table. 3.Only two small dimension joins; nu unnecessary tables.
-  The drawbacks: 1. Grouping by s.store_id assumes the staff row reflects the final store. 2. The DB must aggregate all staff/store rows for 2017 before sorting/limiting. On huge datasets, this can be memory heavy (hash aggregate+sort)*/ 
+/* The benefits of the provided solution for task1: 1. Uses payment→rental→inventory→store logic. .
+  2. Computes the last store worked by most recent payment date. 3.No window functions.
+  The drawbacks: 1. On a large system performence would degrade, it would be better to use window  function. 2. More complex to maintain and explain*/ 
 
 /*Task2:The management team wants to identify the most popular movies and their target audience age groups to optimize marketing efforts. 
  Show which 5 movies were rented more than others (number of rentals), and what's the expected age of the audience for these movies? 
