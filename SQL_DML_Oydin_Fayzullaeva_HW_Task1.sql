@@ -112,8 +112,8 @@ returning customer_id, first_name,last_name, email;
 
 --Remove any records related to you (as a customer) from all tables except 'Customer' and 'Inventory'
 begin;
---1) Identifying "me" (the  customer that was updated earlier).
-with me as (
+--1) Identifying "my_info" (the  customer that was updated earlier).
+with my_info as (
 select customer_id
 from customer 
 where email='oydinaa1818@gmail.com'
@@ -121,24 +121,24 @@ and first_name='Oydin'
 and last_name='Fayzullaeva'
 limit 1 
 )
---2)Delete payments made by me(return what was moved for proof)
+--2)Delete payments made by my_info(return what was moved for proof)
 ,del_pay as (
 delete from payment p 
-using me 
-where p.customer_id=me.customer_id
+using my_info 
+where p.customer_id=my_info.customer_id
 returning p.payment_id, p.rental_id,p.amount, p.payment_date
 )
 --Delete my rentals (return what was removed for proof)
 delete from rental r
-using me
-where r.customer_id=me.customer_id
+using my_info
+where r.customer_id=my_info.customer_id
 returning r.rental_id, r.inventory_id, r.rental_date,r.return_date;
 
 
 --Rent you favorite movies from the store they are in and pay for them (add corresponding records to the database to represent this activity)
 BEGIN;
 
-WITH me AS (
+WITH my_info AS (
   SELECT customer_id
   FROM customer
   WHERE lower(email)=lower('oydinaa1818@gmail.com')
@@ -151,7 +151,7 @@ favs AS (
 ),
 inv AS (  -- one copy per film in store 1
   SELECT DISTINCT ON (i.film_id) i.inventory_id, i.film_id
-  FROM inventory i
+  FROM inventory i 
   JOIN favs USING (film_id)
   WHERE i.store_id = 1
   ORDER BY i.film_id, i.inventory_id
@@ -164,18 +164,18 @@ rent AS (
   SELECT
     (DATE '2017-05-15' + (ROW_NUMBER() OVER (ORDER BY inv.film_id)-1) * INTERVAL '1 day')::timestamp,
     inv.inventory_id,
-    me.customer_id,
+    my_info.customer_id,
     (DATE '2017-05-18' + (ROW_NUMBER() OVER (ORDER BY inv.film_id)-1) * INTERVAL '1 day')::timestamp,
     st.staff_id,
     CURRENT_DATE
   FROM inv
-  CROSS JOIN me
+  CROSS JOIN my_info
   CROSS JOIN st
   WHERE NOT EXISTS (
     SELECT 1
     FROM rental r
     WHERE r.inventory_id = inv.inventory_id
-      AND r.customer_id  = me.customer_id
+      AND r.customer_id  = my_info.customer_id
       AND r.rental_date::date BETWEEN DATE '2017-05-15' AND DATE '2017-05-20'
   )
   RETURNING rental_id, inventory_id, customer_id, staff_id, rental_date
