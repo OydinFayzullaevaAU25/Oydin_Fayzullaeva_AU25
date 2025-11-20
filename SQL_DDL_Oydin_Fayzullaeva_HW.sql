@@ -18,7 +18,7 @@ line_id bigint generated always as identity,
 line_name varchar(50) not null,
 required_trains integer not null,
 required_employess integer not null,
-constaint pK_line_line_id primary key (line_id)
+constaint pk_line_line_id primary key (line_id)
 );
 
 create table if not exists train ( 
