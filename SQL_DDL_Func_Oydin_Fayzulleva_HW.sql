@@ -299,6 +299,32 @@ select core.new_movie('Old Klingon Classic', 1995::smallint);
 select core.new_movie('French Romance', 2001::smallint, 'French');
 
 --Task 6.
+
+/*
+Task 6.
+1.	
+film_in_stock (film_id, stock_id) returns a set of inventory_id values.
+This function shows which specific physical copies of a film are currently in stock (not rented or lost) at a given store.
+The function works by checking inventory , rental, and rental return dates to ensure the film is available.
+film_not_in_stock(film_id,store_id) returns a set of inventory_id values.
+The function shows copies of the film that are not available (because they are rented, lost, or otherwise unavailable).
+The function works as the logical opposite of film_in_stock.
+inventory_in_stock(inventory_id) returns boolean. 
+the function checks whether a single physical copy (inventory_id) is in stock.
+get_customer_balance(customer_id, date) returns numeric balance. 
+The function calculates the customer’s outstanding balance at a given date. 
+inventory_held_by_customer(customer_id) returns a set of inventory items. 
+This function lists physical copies currently rented by the customer and not yet returned.
+rewards_report (min_monthly_rentals,min_monthly_amount) returns a text list of customers.
+last_day(date) returns a date.
+The function works by returning the last day of the month for the given period.
+2.	rewards_return function returns 0 rows, because the default function uses wrong filtering:
+-	it checks rentals for an impossible date range
+-	it uses wrong joins
+-	incorrectly calculates totals
+-	uses dynamic SQL unnecessarily
+-	filters out all rows due to incorrect monthly grouping
+ */
 --corrected version of rewards_report
 
 drop function if exists rewards_report(int,numeric);
@@ -333,7 +359,14 @@ begin
     return result;
 end;
 $$;
-
+/*
+3.	The function that should be removed from dvdrental database is inventory_held_by_customers(). This is due to the fact that this function is redundant, its logic already exists in film_in_stock and rental table queries. It provides no unique functionality.
+4.	get_customer_balance function does not fully implement the business rules. Correct implementation must include the following:
+unpaid rentals
+late fees
+payments
+return dates rental duration
+*/
 -- The corrected version of get_customer_balance
 
 create or replace function get_customer_balance(
@@ -366,3 +399,30 @@ begin
     return rentals - payments;
 end;
 $$;
+
+/*
+5.	group_cancat() 
+This function combines multiple row values into one comma-seperated string
+_group_concat()
+A low level helper function used internally by group_concat().
+these functions are referenced during the database restore script because PostgreSQL does not natively support group_concat (only string_agg).
+They are not used in normal dvdrental logic - only during data import. 
+6.	last_updated() function returns the timestamp of the last update of a row. It is used in film, inventory or customer tables. Moreover, it is used in triggers such as:
+SQL  
+before update on film
+for each row 
+execute function last_update();
+This ensures that a modification timestamp is always correct.
+7.	tmpSQL  is a string holding dynamically built SQL
+Example:
+Plpgsql
+tmpSQL := ‘select…where…’;
+execute tmpSQL;
+It can be rewritten without dynamic SQL , because dynamic SQL is used in the original function for no reason. The entire query can be expressed in a static Select block -
+there is no need to dynamically build column or table names.
+*/
+
+
+
+
+
