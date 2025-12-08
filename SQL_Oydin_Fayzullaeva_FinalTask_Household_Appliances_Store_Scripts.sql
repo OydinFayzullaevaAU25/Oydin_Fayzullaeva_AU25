@@ -123,9 +123,6 @@ insert into employee (full_name, position) values
   ('Mary Simpsons',     'Warehouse Manager'),
   ('Claire Hayes',  'Online Sales Specialist');
 
-select *
-from product;
-
 insert into supplier (supplier_name, contact_phone, contact_email) values
   ('UzFridge LLC',        '+998711111111', 'info@uzfridge.uz'),
   ('TashTech Import',     '+998712222222', 'sales@tashtech.uz'),
@@ -133,53 +130,109 @@ insert into supplier (supplier_name, contact_phone, contact_email) values
   ('Premium Appliances',  '+998714444444', 'office@premium-app.uz'),
   ('Global TV Supply',    '+998715555555', 'support@globaltv.uz'),
   ('Comfort Climate',     '+998716666666', 'info@comfortclimate.uz');
--- (we are assuming that category_id 1..6 from inserts above)
 
-insert into product
-  (product_name, brand, model, price, stock_quantity, category_id)
-values
-  ('NoFrost 320L Fridge',         'Artel',   'NF-320',   4500000.00, 15, 1),
-  ('Inverter Washing Machine',    'Samsung', 'WW80T',    5200000.00, 10, 2),
-  ('4K Smart TV 55"',             'LG',      '55UQ800',  6800000.00,  8, 3),
-  ('Microwave Oven 25L',          'Panasonic','NN-S25', 1800000.00, 20, 4),
-  ('Bagless Vacuum Cleaner',      'Bosch',   'BCS-21',   2300000.00, 12, 5),
-  ('Split AC 12k BTU',            'Midea',   'MS12HR',   5400000.00,  7, 6),
-  ('Top Freezer 260L Fridge',     'Artel',   'TF-260',   3800000.00, 18, 1),
-  ('Front Load Washing Machine',  'LG',      'F4J6',     5600000.00,  9, 2);
+--inserting data into product
+with product_constants as (
+    select *
+    from (values
+        ('NoFrost 320L Fridge',        'Artel',    'NF-320', 4500000.00, 15, 'Refrigerators'),
+        ('Inverter Washing Machine',   'Samsung',  'WW80T',  5200000.00, 10, 'Washing Machines'),
+        ('4K Smart TV 55"',            'LG',       '55UQ800',6800000.00,  8, 'Televisions'),
+        ('Microwave Oven 25L',         'Panasonic','NN-S25', 1800000.00, 20, 'Kitchen Appliances'),
+        ('Bagless Vacuum Cleaner',     'Bosch',    'BCS-21', 2300000.00, 12, 'Vacuum Cleaners'),
+        ('Split AC 12k BTU',           'Midea',    'MS12HR', 5400000.00,  7, 'Air conditioners'),
+        ('Top Freezer 260L Fridge',    'Artel',    'TF-260', 3800000.00, 18, 'Refrigerators'),
+        ('Front Load Washing Machine', 'LG',       'F4J6',   5600000.00,  9, 'Washing Machines')
+    ) as t(product_name, brand, model, price, stock_quantity, category_name)
+)
 
-insert into orders (order_date, customer_id, employee_id, order_status) values
-  (DATE '2025-09-15', 1, 1, 'delivered'),
-  (DATE '2025-09-28', 2, 2, 'delivered'),
-  (DATE '2025-10-05', 3, 3, 'shipped'),
-  (DATE '2025-10-19', 4, 4, 'pending'),
-  (DATE '2025-11-02', 5, 2, 'delivered'),
-  (DATE '2025-11-18', 6, 1, 'canceled'),
-  (DATE '2025-11-25', 1, 5, 'shipped'),
-  (DATE '2025-12-01', 3, 6, 'pending');
+insert into product (product_name, brand, model, price, stock_quantity, category_id)
+select
+    pc.product_name,
+    pc.brand,
+    pc.model,
+    pc.price,
+    pc.stock_quantity,
+    c.category_id
+from product_constants pc
+join category c on c.category_name = pc.category_name;
 
-insert into product_supplier
-  (product_id, supplier_id, procurement_price, last_supply_date)
-values
-  (1, 1, 3700000.00, DATE '2025-09-01'),
-  (7, 1, 3100000.00, DATE '2025-10-10'),
-  (2, 2, 4300000.00, DATE '2025-09-12'),
-  (8, 2, 4700000.00, DATE '2025-10-22'),
-  (3, 5, 5600000.00, DATE '2025-09-18'),
-  (4, 3, 1400000.00, DATE '2025-11-03'),
-  (5, 3, 1800000.00, DATE '2025-10-14'),
-  (6, 6, 4500000.00, DATE '2025-11-20'),
-  (3, 4, 5900000.00, DATE '2025-11-28'),
-  (5, 2, 1900000.00, DATE '2025-09-25');
+--inserting data into product_supplier
+with ps_constants as (
+    select *
+    from (values
+        ('NoFrost 320L Fridge',       'UzFridge LLC',        3700000.00, date '2025-09-01'),
+        ('Inverter Washing Machine',  'TashTech Import',     4200000.00, date '2025-09-10'),
+        ('4K Smart TV 55"',           'Premium Appliances',  6000000.00, date '2025-10-05'),
+        ('Microwave Oven 25L',        'AsiaElectro Trade',   1500000.00, date '2025-08-22'),
+        ('Bagless Vacuum Cleaner',    'Global TV Supply',    1950000.00, date '2025-09-05'),
+        ('Split AC 12k BTU',          'Comfort Climate',     4700000.00, date '2025-08-15')
+    ) as t(product_name, supplier_name, procurement_price, last_supply_date)
+)
+insert into product_supplier (product_id, supplier_id, procurement_price, last_supply_date)
+select
+    p.product_id,
+    s.supplier_id,
+    ps.procurement_price,
+    ps.last_supply_date
+from ps_constants ps
+join product p on p.product_name = ps.product_name
+join supplier s on s.supplier_name = ps.supplier_name;
 
-insert into order_item 
-(order_id, product_id, quantity, price_at_sale)
-values
-  (17, 1, 1, 4500000.00),
-  (18, 4, 1, 1800000.00),
-  (19, 2, 1, 5200000.00),
-  (20, 5, 1, 2300000.00),
-  (21, 3, 1, 6800000.00),
-  (22, 4, 2, 1750000.00);
+select *
+from orders;
+
+--inserting data into orders
+with order_constants as (
+    select *
+    from (values
+        (date '2025-09-15', 'Emily Johnson',  'Alex Brian',   'delivered'),
+        (date '2025-09-25', 'Michael Smith',  'James Blur',   'delivered'),
+        (date '2025-10-03', 'Daniel Brown',   'Cathy Simons', 'shipped'),
+        (date '2025-10-09', 'Laura Davis',    'Alex Brian',   'pending'),
+        (date '2025-10-15', 'Robert Wilson',  'Alex Brian',   'delivered'),
+        (date '2025-10-25', 'Sophia Miller',  'Cathy Simons', 'canceled'),
+        (date '2025-11-03', 'Daniel Brown',   'Cathy Simons', 'shipped'),
+        (date '2025-12-01', 'Daniel Brown',   'Cathy Simons', 'pending')
+    ) as t(order_date, customer_full_name, employee_full_name, order_status)
+)
+insert into orders (order_date, customer_id, employee_id, order_status)
+select
+    oc.order_date,
+    c.customer_id,
+    e.employee_id,
+    oc.order_status
+from order_constants oc
+join customer c on c.full_name  = oc.customer_full_name
+join employee e on e.full_name  = oc.employee_full_name;
+
+
+--inserting into order_item
+with order_item_constants as (
+    select *
+    from (values
+        (date '2025-09-15', 'Emily Johnson',  'NoFrost 320L Fridge',        1, 4800000.00),
+        (date '2025-09-25', 'Michael Smith',  'Front Load Washing Machine', 1, 5900000.00),
+        (date '2025-10-03', 'Daniel Brown',   '4K Smart TV 55"',            1, 7200000.00),
+        (date '2025-10-09', 'Laura Davis',    'Microwave Oven 25L',         2, 1900000.00),
+        (date '2025-10-15', 'Robert Wilson',  'Bagless Vacuum Cleaner',     1, 2500000.00),
+        (date '2025-10-25', 'Sophia Miller',  'Split AC 12k BTU',           1, 5600000.00),
+        (date '2025-11-03', 'Daniel Brown',   'Top Freezer 260L Fridge',    1, 4100000.00),
+        (date '2025-12-01', 'Daniel Brown',   'Microwave Oven 25L',         1, 1850000.00)
+    ) as t(order_date, customer_full_name, product_name, quantity, price_at_sale)
+)
+insert into order_item (order_id, product_id, quantity, price_at_sale)
+select
+    o.order_id,
+    p.product_id,
+    oi.quantity,
+    oi.price_at_sale
+from order_item_constants oi
+join customer c on c.full_name  = oi.customer_full_name
+join orders   o on o.order_date = oi.order_date
+              and o.customer_id = c.customer_id
+join product  p on p.product_name = oi.product_name;
+
 
 --5. Functions
 --5.1. Creating functions that updates data.
